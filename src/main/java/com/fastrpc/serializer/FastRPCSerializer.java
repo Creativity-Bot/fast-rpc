@@ -5,6 +5,7 @@ import com.fastrpc.codec.impl.HessianCodec;
 import com.fastrpc.protocol.Frame;
 import com.fastrpc.protocol.Packet;
 import io.netty.buffer.ByteBuf;
+import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.MessageToMessageCodec;
 import lombok.extern.slf4j.Slf4j;
@@ -13,6 +14,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.*;
 
 @Slf4j
+@ChannelHandler.Sharable
 public class FastRPCSerializer extends MessageToMessageCodec<ByteBuf, Packet> {
     private final Codec<Frame> codec = new HessianCodec();
 

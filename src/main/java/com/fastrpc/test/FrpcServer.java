@@ -1,5 +1,6 @@
 package com.fastrpc.test;
 
+import com.fastrpc.config.ServiceRegistry;
 import com.fastrpc.serializer.FastRPCSerializer;
 import com.fastrpc.service.handler.FrameHandler;
 import com.fastrpc.service.handler.PacketHandler;
@@ -15,7 +16,6 @@ import io.netty.handler.timeout.IdleStateEvent;
 import io.netty.handler.timeout.IdleStateHandler;
 import lombok.extern.slf4j.Slf4j;
 
-import java.util.concurrent.ConcurrentHashMap;
 
 @Slf4j
 public class FrpcServer {
@@ -26,8 +26,8 @@ public class FrpcServer {
         EventLoopGroup handlerGroup = new DefaultEventLoopGroup(16);
         EventLoopGroup serviceGroup = new DefaultEventLoopGroup(16);
 
-        ConcurrentHashMap<String, Object> serviceMap = new ConcurrentHashMap<>();
-        serviceMap.put(HelloService.class.getName(), new HelloServiceImpl());
+        ServiceRegistry serviceRegistry = new ServiceRegistry();
+        serviceRegistry.register(HelloService.class.getName(), new HelloServiceImpl());
 
         try {
             ServerBootstrap serverBootstrap = new ServerBootstrap();
@@ -58,7 +58,7 @@ public class FrpcServer {
                         }
                     });
                     pipeline.addLast(handlerGroup, new ProtocolValidator());
-                    pipeline.addLast(serviceGroup, new FrameHandler(serviceMap));
+                    pipeline.addLast(serviceGroup, new FrameHandler(serviceRegistry));
                     pipeline.addLast(serviceGroup, new PacketHandler());
                 }
             });
@@ -73,6 +73,5 @@ public class FrpcServer {
             handlerGroup.shutdownGracefully();
             serviceGroup.shutdownGracefully();
         }
-
     }
 }

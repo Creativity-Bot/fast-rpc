@@ -3,8 +3,8 @@ package com.fastrpc.test;
 import com.fastrpc.constant.MessageType;
 import com.fastrpc.protocol.DataFrame;
 import com.fastrpc.protocol.Packet;
+import com.fastrpc.protocol.ResultFrame;
 import com.fastrpc.serializer.FastRPCSerializer;
-import com.fastrpc.service.handler.FrameHandler;
 import com.fastrpc.validation.ProtocolValidator;
 import io.netty.bootstrap.Bootstrap;
 import io.netty.channel.*;
@@ -19,6 +19,7 @@ import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 
 import java.net.InetSocketAddress;
+import java.util.Map;
 
 @Slf4j
 public class FrpcClient {
@@ -26,7 +27,6 @@ public class FrpcClient {
     public static void main(String[] args) {
         EventLoopGroup eventLoopGroup = new NioEventLoopGroup(1);
         EventLoopGroup groupHandler = new DefaultEventLoopGroup();
-        EventLoopGroup serviceGroup = new DefaultEventLoopGroup();
         LoggingHandler LOGGING_HANDLER = new LoggingHandler();
 
         Bootstrap bootstrap = new Bootstrap();
@@ -64,7 +64,6 @@ public class FrpcClient {
 
                 });
                 pipeline.addLast(groupHandler, new ProtocolValidator());
-                pipeline.addLast(serviceGroup, new FrameHandler(null));
                 pipeline.addLast(new ChannelInboundHandlerAdapter(){
                     @Override
                     public void channelActive(ChannelHandlerContext ctx) throws Exception {
@@ -76,10 +75,17 @@ public class FrpcClient {
                         );
                         ctx.writeAndFlush(new Packet(dataFrame, 1, MessageType.REQUEST.getCode()));
                     }
+
+                    @Override
+                    public void channelRead(ChannelHandlerContext ctx, Object msg) {
+                        Map<String, Object> response = (Map<String, Object>) msg;
+                        ResultFrame frame = (ResultFrame) response.get("frame");
+                        log.debug("response received : {}", frame.getResult());
+                    }
                 });
             }
         });
-        Channel channel = bootstrap.connect(new InetSocketAddress(8000)).sync().channel();
+        Channel channel = bootstrap.connect(new InetSocketAddress(9527)).sync().channel();
         channel.closeFuture().sync();
     }
 }

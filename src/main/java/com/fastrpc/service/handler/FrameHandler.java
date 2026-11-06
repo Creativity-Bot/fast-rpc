@@ -1,10 +1,12 @@
 package com.fastrpc.service.handler;
 
+import com.fastrpc.config.ServiceRegistry;
 import com.fastrpc.constant.MessageType;
 import com.fastrpc.protocol.DataFrame;
 import com.fastrpc.protocol.Frame;
 import com.fastrpc.protocol.Packet;
 import com.fastrpc.protocol.ResultFrame;
+import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.SimpleChannelInboundHandler;
 import lombok.extern.slf4j.Slf4j;
@@ -13,11 +15,12 @@ import java.lang.reflect.Method;
 import java.util.Map;
 
 @Slf4j
+@ChannelHandler.Sharable
 public class FrameHandler extends SimpleChannelInboundHandler<Map<String, Object>> {
-    private final Map<String, Object> serviceMap;
+    private final ServiceRegistry serviceRegistry;
 
-    public FrameHandler(Map<String, Object> serviceMap) {
-        this.serviceMap = serviceMap;
+    public FrameHandler(ServiceRegistry serviceRegistry) {
+        this.serviceRegistry = serviceRegistry;
     }
 
     @Override
@@ -36,6 +39,7 @@ public class FrameHandler extends SimpleChannelInboundHandler<Map<String, Object
         } else {
             ResultFrame frame = (ResultFrame) msg.get("frame");
             log.debug("response received : {}", frame.getResult());
+            // notify the thread to pick up result or throw the exception
         }
     }
 
@@ -47,7 +51,7 @@ public class FrameHandler extends SimpleChannelInboundHandler<Map<String, Object
         Object[] args = frame.getArgs();
 
         String serviceName = serviceInterface.getName();
-        Object orDefault = serviceMap.getOrDefault(serviceName, null);
+        Object orDefault = serviceRegistry.get(serviceName);
         if (orDefault == null) {
             log.error("service {} does not exist", serviceName);
             throw new RuntimeException("service does not exist");
