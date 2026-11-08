@@ -2,6 +2,7 @@ package com.fastrpc.service.handler;
 
 import com.fastrpc.constant.MessageType;
 import com.fastrpc.protocol.Packet;
+import com.fastrpc.proxy.InFlight;
 import io.netty.channel.*;
 import io.netty.handler.timeout.IdleState;
 import io.netty.handler.timeout.IdleStateEvent;
@@ -26,7 +27,12 @@ public class ClientHeartBeatHandler extends ChannelDuplexHandler {
                 ctx.channel().close();
             }else if (((IdleStateEvent) evt).state() == IdleState.WRITER_IDLE){
                 log.debug("detect write idle so fire ping ...");
-                ctx.channel().writeAndFlush(new Packet(null, 123, MessageType.PING.getCode()));
+                InFlight inFlight = ctx.channel().attr(InFlight.KEY).get();
+                if (inFlight == null) {
+                    return;
+                }
+                int requestId = inFlight.nextId();
+                ctx.channel().writeAndFlush(new Packet(null, requestId, MessageType.PING.getCode()));
             }
         }
     }
