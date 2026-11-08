@@ -19,6 +19,7 @@ public class HeartBeatHandler extends ChannelDuplexHandler {
                     }
                 }
             });
+            ctx.channel().close();
         }
     }
 }
