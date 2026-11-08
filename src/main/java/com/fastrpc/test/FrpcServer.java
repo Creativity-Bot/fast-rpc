@@ -58,7 +58,7 @@ public class FrpcServer {
                         }
                     });
                     pipeline.addLast(handlerGroup, new ProtocolValidator());
-                    pipeline.addLast(serviceGroup, new FrameHandler(serviceRegistry));
+                    pipeline.addLast(serviceGroup, new FrameHandler(serviceRegistry, 16));
                     pipeline.addLast(serviceGroup, new PacketHandler());
                 }
             });

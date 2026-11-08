@@ -9,18 +9,33 @@ import com.fastrpc.protocol.ResultFrame;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.SimpleChannelInboundHandler;
+import io.netty.util.concurrent.DefaultThreadFactory;
 import lombok.extern.slf4j.Slf4j;
 
 import java.lang.reflect.Method;
 import java.util.Map;
+import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 
 @Slf4j
 @ChannelHandler.Sharable
 public class FrameHandler extends SimpleChannelInboundHandler<Map<String, Object>> {
     private final ServiceRegistry serviceRegistry;
+    private final int serviceNumber;
+    private final ThreadPoolExecutor servicesPool;
 
-    public FrameHandler(ServiceRegistry serviceRegistry) {
+    public FrameHandler(ServiceRegistry serviceRegistry, int serviceNumber) {
         this.serviceRegistry = serviceRegistry;
+        this.serviceNumber = serviceNumber;
+        this.servicesPool = new ThreadPoolExecutor(
+                this.serviceNumber,
+                this.serviceNumber,
+                0L,
+                TimeUnit.MILLISECONDS,
+                new ArrayBlockingQueue<>(128),
+                new DefaultThreadFactory("frpc-business"),
+                new ThreadPoolExecutor.AbortPolicy());
     }
 
     @Override
@@ -31,15 +46,20 @@ public class FrameHandler extends SimpleChannelInboundHandler<Map<String, Object
         MessageType messageType = MessageType.from(type);
         if (messageType == MessageType.REQUEST) {
             try {
-                Frame frame = invokeMethod(msg);
-                ctx.channel().writeAndFlush(new Packet(frame, requestId, MessageType.RESPONSE.getCode()));
+                servicesPool.submit(new Runnable() {
+                    @Override
+                    public void run() {
+                        try {
+                            Frame frame = invokeMethod(msg);
+                            ctx.channel().writeAndFlush(new Packet(frame, requestId, MessageType.RESPONSE.getCode()));
+                        } catch (Exception e) {
+                            ctx.channel().writeAndFlush(new Packet(new ResultFrame(null, e), requestId, MessageType.RESPONSE.getCode()));
+                        }
+                    }
+                });
             } catch (Exception e) {
-                ctx.channel().writeAndFlush(new Packet(null, requestId, MessageType.RESPONSE.getCode()));
+                ctx.channel().writeAndFlush(new Packet(new ResultFrame(null, e), requestId, MessageType.RESPONSE.getCode()));
             }
-        } else {
-            ResultFrame frame = (ResultFrame) msg.get("frame");
-            log.debug("response received : {}", frame.getResult());
-            // notify the thread to pick up result or throw the exception
         }
     }
 
@@ -67,6 +87,12 @@ public class FrameHandler extends SimpleChannelInboundHandler<Map<String, Object
                 throw new RuntimeException(e);
             }
             return resultFrame;
+        }
+    }
+
+    public void close(){
+        if(servicesPool != null){
+            servicesPool.shutdownNow();
         }
     }
 }

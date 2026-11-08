@@ -41,8 +41,6 @@ public class NettyServer implements Server {
 
     private final EventLoopGroup handlerGroup;
 
-    private final EventLoopGroup serviceGroup;
-
     private String ip;
 
     private int port;
@@ -52,6 +50,8 @@ public class NettyServer implements Server {
     private long writeIdleTime;
 
     private TimeUnit timeUnit;
+
+    private FrameHandler frameHandler;
 
     public NettyServer(int workerNumbers, int handlerNumbers, int serviceNumbers, ServiceRegistry serviceRegistry) {
         this(workerNumbers, handlerNumbers, serviceNumbers, serviceRegistry, "localhost", 9527, 15, 0, TimeUnit.SECONDS);
@@ -66,7 +66,6 @@ public class NettyServer implements Server {
         this.bossGroup = new NioEventLoopGroup(1);
         this.workerGroup = new NioEventLoopGroup(workerNumbers);
         this.handlerGroup = new DefaultEventLoopGroup(handlerNumbers);
-        this.serviceGroup = new DefaultEventLoopGroup(serviceNumbers);
         this.readIdleTime = readIdleTime;
         this.writeIdleTime = writeIdleTime;
         this.timeUnit = timeUnit;
@@ -80,7 +79,7 @@ public class NettyServer implements Server {
         LoggingHandler loggingHandler = new LoggingHandler();
         FastRPCSerializer fastRPCSerializer = new FastRPCSerializer();
         ProtocolValidator protocolValidator = new ProtocolValidator();
-        FrameHandler frameHandler = new FrameHandler(this.serviceRegistry);
+        frameHandler = new FrameHandler(this.serviceRegistry, this.serviceNumbers);
         PacketHandler packetHandler = new PacketHandler();
         HeartBeatHandler heartBeatHandler = new HeartBeatHandler();
 
@@ -98,8 +97,8 @@ public class NettyServer implements Server {
                     pipeline.addLast(handlerGroup, fastRPCSerializer);
                     pipeline.addLast(handlerGroup, heartBeatHandler);
                     pipeline.addLast(handlerGroup, protocolValidator);
-                    pipeline.addLast(serviceGroup, frameHandler);
-                    pipeline.addLast(serviceGroup, packetHandler);
+                    pipeline.addLast(handlerGroup, frameHandler);
+                    pipeline.addLast(handlerGroup, packetHandler);
                 }
             });
 
@@ -140,6 +139,6 @@ public class NettyServer implements Server {
         bossGroup.shutdownGracefully();
         workerGroup.shutdownGracefully();
         handlerGroup.shutdownGracefully();
-        serviceGroup.shutdownGracefully();
+        frameHandler.close();
     }
 }

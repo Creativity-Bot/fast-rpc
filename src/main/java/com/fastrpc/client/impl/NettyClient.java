@@ -3,7 +3,7 @@ package com.fastrpc.client.impl;
 import com.fastrpc.client.Client;
 import com.fastrpc.serializer.FastRPCSerializer;
 import com.fastrpc.service.handler.ClientHeartBeatHandler;
-import com.fastrpc.service.handler.FrameHandler;
+import com.fastrpc.service.handler.ResultHandler;
 import com.fastrpc.validation.ProtocolValidator;
 import io.netty.bootstrap.Bootstrap;
 import io.netty.channel.*;
@@ -59,7 +59,6 @@ public class NettyClient implements Client {
     }
 
 
-    @Builder
     private NettyClient(String ip, int port, Long readIdleTime, long writeIdleTime, TimeUnit timeUnit) {
         this.ip = ip;
         this.port = port;
@@ -76,7 +75,7 @@ public class NettyClient implements Client {
         FastRPCSerializer fastRPCSerializer = new FastRPCSerializer();
         ClientHeartBeatHandler clientHeartBeatHandler = new ClientHeartBeatHandler();
         ProtocolValidator protocolValidator = new ProtocolValidator();
-        FrameHandler frameHandler = new FrameHandler(null);
+        ResultHandler resultHandler = new ResultHandler();
 
         Channel channel = null;
         try {
@@ -94,7 +93,7 @@ public class NettyClient implements Client {
                     pipeline.addLast(groupHandler, fastRPCSerializer);
                     pipeline.addLast(groupHandler, clientHeartBeatHandler);
                     pipeline.addLast(groupHandler, protocolValidator);
-                    pipeline.addLast(groupHandler, frameHandler);
+                    pipeline.addLast(groupHandler, resultHandler);
                 }
             });
             channel = bootstrap.connect(new InetSocketAddress(ip, port)).sync().channel();
