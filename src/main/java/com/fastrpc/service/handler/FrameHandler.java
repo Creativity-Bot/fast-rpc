@@ -84,7 +84,7 @@ public class FrameHandler extends SimpleChannelInboundHandler<Map<String, Object
                 resultFrame.setResult(result);
             } catch (Exception e) {
                 log.error("method invocation occurs error {}", methodName);
-                throw new RuntimeException(e);
+                resultFrame.setException(e);
             }
             return resultFrame;
         }
