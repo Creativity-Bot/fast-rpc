@@ -12,8 +12,6 @@ import io.netty.channel.socket.nio.NioSocketChannel;
 import io.netty.handler.codec.LengthFieldBasedFrameDecoder;
 import io.netty.handler.logging.LoggingHandler;
 import io.netty.handler.timeout.IdleStateHandler;
-import io.netty.util.concurrent.Future;
-import io.netty.util.concurrent.GenericFutureListener;
 import lombok.Builder;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
@@ -41,14 +39,17 @@ public class NettyClient implements Client {
 
     private final EventLoopGroup groupHandler;
 
-    private static final Map<String, NettyClient> CLIENTS = new ConcurrentHashMap<>();
+    private static final Map<String, Channel> CLIENTS = new ConcurrentHashMap<>();
 
-    public static NettyClient get(String ip, int port) {
+    public static Channel get(String ip, int port) {
         String key = ip + ":" + port;
         return CLIENTS.computeIfAbsent(key, k -> {
             NettyClient client = new NettyClient(ip, port);
-            client.connect();
-            return client;
+            Channel channel = client.connect();
+            if (channel == null) {
+                throw new IllegalStateException("connect failed: " + key);
+            }
+            return channel;
         });
     }
 
@@ -70,13 +71,14 @@ public class NettyClient implements Client {
     }
 
     @Override
-    public void connect() {
+    public Channel connect() {
         LoggingHandler loggingHandler = new LoggingHandler();
         FastRPCSerializer fastRPCSerializer = new FastRPCSerializer();
         ClientHeartBeatHandler clientHeartBeatHandler = new ClientHeartBeatHandler();
         ProtocolValidator protocolValidator = new ProtocolValidator();
         FrameHandler frameHandler = new FrameHandler(null);
 
+        Channel channel = null;
         try {
             Bootstrap bootstrap = new Bootstrap();
             bootstrap.channel(NioSocketChannel.class);
@@ -95,31 +97,20 @@ public class NettyClient implements Client {
                     pipeline.addLast(groupHandler, frameHandler);
                 }
             });
-            ChannelFuture channelFuture = bootstrap.connect(new InetSocketAddress(ip, port));
-            channelFuture.addListener(new GenericFutureListener<Future<? super Void>>() {
-                @Override
-                public void operationComplete(Future<? super Void> future) throws Exception {
-                    if (future.isSuccess()) {
-                        Channel channel = channelFuture.channel();
-                        ChannelFuture closeFuture = channel.closeFuture();
-                        closeFuture.addListener(new GenericFutureListener<Future<? super Void>>() {
-                            @Override
-                            public void operationComplete(Future<? super Void> future) throws Exception {
-                                if (future.isSuccess()) {
-                                    close();
-                                }
-                            }
-                        });
-                    }
+            channel = bootstrap.connect(new InetSocketAddress(ip, port)).sync().channel();
+            channel.closeFuture().addListener(future -> {
+                if (future.isSuccess()) {
+                    CLIENTS.remove(ip + ":" + port);
+                    close();
                 }
             });
+            Runtime.getRuntime().addShutdownHook(new Thread(this::close));
         } catch (Exception e) {
             log.error("client failed to init due to {}", e);
             close();
         }
 
-
-        Runtime.getRuntime().addShutdownHook(new Thread(this::close));
+        return channel;
     }
 
     @Override
