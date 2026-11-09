@@ -1,13 +1,13 @@
 package com.fastrpc.config;
 
+import java.util.HashMap;
 import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 
 public class ServiceRegistry {
-    private final Map<String, Object> services = new ConcurrentHashMap<>();
+    private final Map<String, Object> services = new HashMap<>();
 
     public void register(String serviceName, Object implementation) {
-        services.put(serviceName, implementation);
+        services.putIfAbsent(serviceName, implementation);
     }
 
     public Object get(String serviceName) {

@@ -1,12 +1,10 @@
 package com.fastrpc.server.impl;
 
+import com.fastrpc.config.ServiceRateLimiter;
 import com.fastrpc.config.ServiceRegistry;
 import com.fastrpc.serializer.FastRPCSerializer;
 import com.fastrpc.server.Server;
-import com.fastrpc.service.handler.FrameHandler;
-import com.fastrpc.service.handler.HeartBeatHandler;
-import com.fastrpc.service.handler.PacketHandler;
-import com.fastrpc.service.handler.ProtocolExceptionHandler;
+import com.fastrpc.service.handler.*;
 import com.fastrpc.validation.ProtocolValidator;
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.channel.*;
@@ -36,6 +34,8 @@ public class NettyServer implements Server {
 
     private final ServiceRegistry serviceRegistry;
 
+    private final ServiceRateLimiter serviceRateLimiter;
+
     private final EventLoopGroup bossGroup;
 
     private final EventLoopGroup workerGroup;
@@ -54,16 +54,17 @@ public class NettyServer implements Server {
 
     private FrameHandler frameHandler;
 
-    public NettyServer(int workerNumbers, int handlerNumbers, int serviceNumbers, ServiceRegistry serviceRegistry) {
-        this(workerNumbers, handlerNumbers, serviceNumbers, serviceRegistry, "localhost", 9527, 15, 0, TimeUnit.SECONDS);
+    public NettyServer(int workerNumbers, int handlerNumbers, int serviceNumbers, ServiceRegistry serviceRegistry, ServiceRateLimiter serviceRateLimiter) {
+        this(workerNumbers, handlerNumbers, serviceNumbers, serviceRegistry, serviceRateLimiter, "localhost", 9527, 15, 0, TimeUnit.SECONDS);
     }
 
     @Builder
-    private NettyServer(int workerNumbers, int handlerNumbers, int serviceNumbers, ServiceRegistry serviceRegistry, String ip, int port, long readIdleTime, long writeIdleTime, TimeUnit timeUnit) {
+    private NettyServer(int workerNumbers, int handlerNumbers, int serviceNumbers, ServiceRegistry serviceRegistry, ServiceRateLimiter serviceRateLimiter, String ip, int port, long readIdleTime, long writeIdleTime, TimeUnit timeUnit) {
         this.workerNumbers = workerNumbers;
         this.handlerNumbers = handlerNumbers;
         this.serviceNumbers = serviceNumbers;
         this.serviceRegistry = serviceRegistry;
+        this.serviceRateLimiter = serviceRateLimiter;
         this.bossGroup = new NioEventLoopGroup(1);
         this.workerGroup = new NioEventLoopGroup(workerNumbers);
         this.handlerGroup = new DefaultEventLoopGroup(handlerNumbers);
@@ -84,6 +85,7 @@ public class NettyServer implements Server {
         PacketHandler packetHandler = new PacketHandler();
         HeartBeatHandler heartBeatHandler = new HeartBeatHandler();
         ProtocolExceptionHandler protocolExceptionHandler = new ProtocolExceptionHandler();
+        RateLimiterHandler rateLimiterHandler = new RateLimiterHandler(this.serviceRateLimiter);
 
         try {
             ServerBootstrap serverBootstrap = new ServerBootstrap();
@@ -99,6 +101,7 @@ public class NettyServer implements Server {
                     pipeline.addLast(handlerGroup, fastRPCSerializer);
                     pipeline.addLast(handlerGroup, heartBeatHandler);
                     pipeline.addLast(handlerGroup, protocolValidator);
+                    pipeline.addLast(handlerGroup, rateLimiterHandler);
                     pipeline.addLast(handlerGroup, protocolExceptionHandler);
                     pipeline.addLast(handlerGroup, frameHandler);
                     pipeline.addLast(handlerGroup, packetHandler);

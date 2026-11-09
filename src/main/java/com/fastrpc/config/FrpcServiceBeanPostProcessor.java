@@ -9,9 +9,11 @@ import org.springframework.util.ClassUtils;
 public class FrpcServiceBeanPostProcessor implements BeanPostProcessor {
 
     private final ServiceRegistry serviceRegistry;
+    private final ServiceRateLimiter serviceRateLimiter;
 
-    public FrpcServiceBeanPostProcessor(ServiceRegistry serviceRegistry) {
+    public FrpcServiceBeanPostProcessor(ServiceRegistry serviceRegistry, ServiceRateLimiter serviceRateLimiter) {
         this.serviceRegistry = serviceRegistry;
+        this.serviceRateLimiter = serviceRateLimiter;
     }
 
 
@@ -23,6 +25,7 @@ public class FrpcServiceBeanPostProcessor implements BeanPostProcessor {
         }
         for (Class<?> iface : type.getInterfaces()) {
             serviceRegistry.register(iface.getName(), bean);
+            serviceRateLimiter.register(iface.getName());
         }
         return bean;
     }

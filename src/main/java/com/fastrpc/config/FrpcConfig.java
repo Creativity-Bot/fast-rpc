@@ -13,8 +13,13 @@ public class FrpcConfig {
     }
 
     @Bean
-    public NettyServer nettyServer(ServiceRegistry serviceRegistry) {
-        return new NettyServer(4, 16, 16, serviceRegistry);
+    public ServiceRateLimiter serviceRateLimiter(){
+        return new ServiceRateLimiter();
+    }
+
+    @Bean
+    public NettyServer nettyServer(ServiceRegistry serviceRegistry, ServiceRateLimiter serviceRateLimiter) {
+        return new NettyServer(4, 16, 16, serviceRegistry, serviceRateLimiter);
     }
 
 
