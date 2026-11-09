@@ -1,6 +1,7 @@
 package com.fastrpc.client.impl;
 
 import com.fastrpc.client.Client;
+import com.fastrpc.exception.ConnectException;
 import com.fastrpc.serializer.FastRPCSerializer;
 import com.fastrpc.service.handler.ClientHeartBeatHandler;
 import com.fastrpc.service.handler.ResultHandler;
@@ -12,7 +13,6 @@ import io.netty.channel.socket.nio.NioSocketChannel;
 import io.netty.handler.codec.LengthFieldBasedFrameDecoder;
 import io.netty.handler.logging.LoggingHandler;
 import io.netty.handler.timeout.IdleStateHandler;
-import lombok.Builder;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 
@@ -45,9 +45,11 @@ public class NettyClient implements Client {
         String key = ip + ":" + port;
         return CLIENTS.computeIfAbsent(key, k -> {
             NettyClient client = new NettyClient(ip, port);
-            Channel channel = client.connect();
-            if (channel == null) {
-                throw new IllegalStateException("connect failed: " + key);
+            Channel channel = null;
+            try {
+                channel = client.connect();
+            } catch (Exception e) {
+                throw new ConnectException(e);
             }
             return channel;
         });
@@ -70,7 +72,7 @@ public class NettyClient implements Client {
     }
 
     @Override
-    public Channel connect() {
+    public Channel connect() throws Exception{
         LoggingHandler loggingHandler = new LoggingHandler();
         FastRPCSerializer fastRPCSerializer = new FastRPCSerializer();
         ClientHeartBeatHandler clientHeartBeatHandler = new ClientHeartBeatHandler();
@@ -107,6 +109,7 @@ public class NettyClient implements Client {
         } catch (Exception e) {
             log.error("client failed to init due to {}", e);
             close();
+            throw e;
         }
 
         return channel;
