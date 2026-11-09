@@ -1,5 +1,6 @@
 package com.fastrpc.config;
 
+import com.fastrpc.annotation.FrpcClient;
 import com.fastrpc.proxy.JDKProxy;
 import org.springframework.beans.BeansException;
 import org.springframework.beans.factory.BeanCreationException;

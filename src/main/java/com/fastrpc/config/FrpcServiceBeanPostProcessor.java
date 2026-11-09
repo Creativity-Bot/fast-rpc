@@ -1,5 +1,6 @@
 package com.fastrpc.config;
 
+import com.fastrpc.annotation.FrpcService;
 import org.springframework.beans.BeansException;
 import org.springframework.beans.factory.config.BeanPostProcessor;
 import org.springframework.stereotype.Component;

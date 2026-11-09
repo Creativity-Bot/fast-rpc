@@ -1,4 +1,4 @@
-package com.fastrpc.config;
+package com.fastrpc.annotation;
 
 import org.springframework.stereotype.Service;
 
