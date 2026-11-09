@@ -4,6 +4,7 @@ import com.fastrpc.config.ServiceRegistry;
 import com.fastrpc.serializer.FastRPCSerializer;
 import com.fastrpc.service.handler.FrameHandler;
 import com.fastrpc.service.handler.PacketHandler;
+import com.fastrpc.service.handler.ProtocolExceptionHandler;
 import com.fastrpc.validation.ProtocolValidator;
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.channel.*;
@@ -58,6 +59,7 @@ public class FrpcServer {
                         }
                     });
                     pipeline.addLast(handlerGroup, new ProtocolValidator());
+                    pipeline.addLast(handlerGroup, new ProtocolExceptionHandler());
                     pipeline.addLast(serviceGroup, new FrameHandler(serviceRegistry, 16));
                     pipeline.addLast(serviceGroup, new PacketHandler());
                 }

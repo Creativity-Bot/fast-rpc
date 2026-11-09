@@ -1,8 +1,8 @@
 package com.fastrpc.validation;
 
-import com.fastrpc.protocol.DataFrame;
-import com.fastrpc.protocol.Frame;
 import com.fastrpc.constant.MessageType;
+import com.fastrpc.exception.ProtocolException;
+import com.fastrpc.protocol.Frame;
 import com.fastrpc.protocol.Packet;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
@@ -27,16 +27,20 @@ public class ProtocolValidator extends SimpleChannelInboundHandler<Map<String, O
         MessageType messageType = MessageType.from(type);
 
         if (magicNum == null || magicNum.length() != 4) {
-            throw new IllegalArgumentException("Magic number is not valid");
+            log.error("Magic number is not valid for request with id {}", requestId);
+            throw new ProtocolException(requestId, "Magic number is not valid");
         }
         if (version != Frame.VERSION) {
-            throw new IllegalArgumentException("Version is not valid");
+            log.error("Version is not valid for request with id {}", requestId);
+            throw new ProtocolException(requestId, "Version is not valid");
         }
         if (messageType == null) {
-            throw new IllegalArgumentException("Type is invalid" + type);
+            log.error("Type is invalid for request with id {}", requestId);
+            throw new ProtocolException(requestId, "Type is invalid" + type);
         }
         if (requestId == 0) {
-            throw new IllegalArgumentException("Request ID is required");
+            log.error("Request ID is required for request with id {}", requestId);
+            throw new ProtocolException(requestId, "Request ID is required");
         }
 
         if (messageType == MessageType.PING) {

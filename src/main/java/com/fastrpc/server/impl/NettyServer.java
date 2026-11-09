@@ -6,6 +6,7 @@ import com.fastrpc.server.Server;
 import com.fastrpc.service.handler.FrameHandler;
 import com.fastrpc.service.handler.HeartBeatHandler;
 import com.fastrpc.service.handler.PacketHandler;
+import com.fastrpc.service.handler.ProtocolExceptionHandler;
 import com.fastrpc.validation.ProtocolValidator;
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.channel.*;
@@ -82,6 +83,7 @@ public class NettyServer implements Server {
         frameHandler = new FrameHandler(this.serviceRegistry, this.serviceNumbers);
         PacketHandler packetHandler = new PacketHandler();
         HeartBeatHandler heartBeatHandler = new HeartBeatHandler();
+        ProtocolExceptionHandler protocolExceptionHandler = new ProtocolExceptionHandler();
 
         try {
             ServerBootstrap serverBootstrap = new ServerBootstrap();
@@ -97,6 +99,7 @@ public class NettyServer implements Server {
                     pipeline.addLast(handlerGroup, fastRPCSerializer);
                     pipeline.addLast(handlerGroup, heartBeatHandler);
                     pipeline.addLast(handlerGroup, protocolValidator);
+                    pipeline.addLast(handlerGroup, protocolExceptionHandler);
                     pipeline.addLast(handlerGroup, frameHandler);
                     pipeline.addLast(handlerGroup, packetHandler);
                 }
