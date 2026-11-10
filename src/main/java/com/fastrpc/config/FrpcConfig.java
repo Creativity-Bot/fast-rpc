@@ -39,9 +39,7 @@ public class FrpcConfig {
     }
 
     @Bean
-    public NettyServer nettyServer(ServiceMap serviceMap, ServiceRateLimiter serviceRateLimiter) {
-        return new NettyServer(4, 16, 16, serviceMap, serviceRateLimiter);
+    public NettyServer nettyServer(ServiceMap serviceMap, ServiceRateLimiter serviceRateLimiter, Registry registry) {
+        return new NettyServer(4, 16, 16, serviceMap, serviceRateLimiter, registry);
     }
-
-
 }

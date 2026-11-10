@@ -2,6 +2,7 @@ package com.fastrpc.server.impl;
 
 import com.fastrpc.config.ServiceMap;
 import com.fastrpc.config.ServiceRateLimiter;
+import com.fastrpc.registry.Registry;
 import com.fastrpc.serializer.FastRPCSerializer;
 import com.fastrpc.server.Server;
 import com.fastrpc.service.handler.*;
@@ -20,6 +21,8 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 
+import java.net.InetSocketAddress;
+import java.util.Iterator;
 import java.util.concurrent.TimeUnit;
 
 @Data
@@ -54,12 +57,14 @@ public class NettyServer implements Server {
 
     private FrameHandler frameHandler;
 
-    public NettyServer(int workerNumbers, int handlerNumbers, int serviceNumbers, ServiceMap serviceMap, ServiceRateLimiter serviceRateLimiter) {
-        this(workerNumbers, handlerNumbers, serviceNumbers, serviceMap, serviceRateLimiter, "localhost", 9527, 15, 0, TimeUnit.SECONDS);
+    private Registry registry;
+
+    public NettyServer(int workerNumbers, int handlerNumbers, int serviceNumbers, ServiceMap serviceMap, ServiceRateLimiter serviceRateLimiter, Registry registry) {
+        this(workerNumbers, handlerNumbers, serviceNumbers, serviceMap, serviceRateLimiter, registry, "localhost", 9527, 15, 0, TimeUnit.SECONDS);
     }
 
     @Builder
-    private NettyServer(int workerNumbers, int handlerNumbers, int serviceNumbers, ServiceMap serviceMap, ServiceRateLimiter serviceRateLimiter, String ip, int port, long readIdleTime, long writeIdleTime, TimeUnit timeUnit) {
+    private NettyServer(int workerNumbers, int handlerNumbers, int serviceNumbers, ServiceMap serviceMap, ServiceRateLimiter serviceRateLimiter, Registry registry, String ip, int port, long readIdleTime, long writeIdleTime, TimeUnit timeUnit) {
         this.workerNumbers = workerNumbers;
         this.handlerNumbers = handlerNumbers;
         this.serviceNumbers = serviceNumbers;
@@ -73,6 +78,7 @@ public class NettyServer implements Server {
         this.timeUnit = timeUnit;
         this.ip = ip;
         this.port = port;
+        this.registry = registry;
     }
 
     @Override
@@ -114,11 +120,10 @@ public class NettyServer implements Server {
                 @Override
                 public void operationComplete(Future<? super Void> future) throws Exception {
                     if (future.isSuccess()) {
-                        //2服务注册功能
-                        //registerServices(InetAddress.getLocalHost().getHostAddress(), port, exposeBeans, registry);
-                        //isStarted = true;
+                        // register services
+                        registerServices(ip, port);
 
-                        //监听关闭
+                        //listen for closure
                         Channel channel = channelFuture.channel();
                         ChannelFuture closeFuture = channel.closeFuture();
                         closeFuture.addListener(new GenericFutureListener<Future<? super Void>>() {
@@ -137,6 +142,14 @@ public class NettyServer implements Server {
         } catch (Exception e) {
             log.error("server failed to init due to {}", e);
              stop();
+        }
+    }
+
+    private void registerServices(String ip, int port) {
+        Iterator iterator = serviceMap.getServiceSet().iterator();
+        while (iterator.hasNext()) {
+            String service = (String) iterator.next();
+            registry.registerService(service, new InetSocketAddress(ip, port));
         }
     }
 
