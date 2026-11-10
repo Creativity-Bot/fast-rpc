@@ -1,7 +1,7 @@
 package com.fastrpc.server.impl;
 
+import com.fastrpc.config.ServiceMap;
 import com.fastrpc.config.ServiceRateLimiter;
-import com.fastrpc.config.ServiceRegistry;
 import com.fastrpc.serializer.FastRPCSerializer;
 import com.fastrpc.server.Server;
 import com.fastrpc.service.handler.*;
@@ -32,7 +32,7 @@ public class NettyServer implements Server {
 
     private final int serviceNumbers;
 
-    private final ServiceRegistry serviceRegistry;
+    private final ServiceMap serviceMap;
 
     private final ServiceRateLimiter serviceRateLimiter;
 
@@ -54,16 +54,16 @@ public class NettyServer implements Server {
 
     private FrameHandler frameHandler;
 
-    public NettyServer(int workerNumbers, int handlerNumbers, int serviceNumbers, ServiceRegistry serviceRegistry, ServiceRateLimiter serviceRateLimiter) {
-        this(workerNumbers, handlerNumbers, serviceNumbers, serviceRegistry, serviceRateLimiter, "localhost", 9527, 15, 0, TimeUnit.SECONDS);
+    public NettyServer(int workerNumbers, int handlerNumbers, int serviceNumbers, ServiceMap serviceMap, ServiceRateLimiter serviceRateLimiter) {
+        this(workerNumbers, handlerNumbers, serviceNumbers, serviceMap, serviceRateLimiter, "localhost", 9527, 15, 0, TimeUnit.SECONDS);
     }
 
     @Builder
-    private NettyServer(int workerNumbers, int handlerNumbers, int serviceNumbers, ServiceRegistry serviceRegistry, ServiceRateLimiter serviceRateLimiter, String ip, int port, long readIdleTime, long writeIdleTime, TimeUnit timeUnit) {
+    private NettyServer(int workerNumbers, int handlerNumbers, int serviceNumbers, ServiceMap serviceMap, ServiceRateLimiter serviceRateLimiter, String ip, int port, long readIdleTime, long writeIdleTime, TimeUnit timeUnit) {
         this.workerNumbers = workerNumbers;
         this.handlerNumbers = handlerNumbers;
         this.serviceNumbers = serviceNumbers;
-        this.serviceRegistry = serviceRegistry;
+        this.serviceMap = serviceMap;
         this.serviceRateLimiter = serviceRateLimiter;
         this.bossGroup = new NioEventLoopGroup(1);
         this.workerGroup = new NioEventLoopGroup(workerNumbers);
@@ -81,7 +81,7 @@ public class NettyServer implements Server {
         LoggingHandler loggingHandler = new LoggingHandler();
         FastRPCSerializer fastRPCSerializer = new FastRPCSerializer();
         ProtocolValidator protocolValidator = new ProtocolValidator();
-        frameHandler = new FrameHandler(this.serviceRegistry, this.serviceNumbers);
+        frameHandler = new FrameHandler(this.serviceMap, this.serviceNumbers);
         PacketHandler packetHandler = new PacketHandler();
         HeartBeatHandler heartBeatHandler = new HeartBeatHandler();
         ProtocolExceptionHandler protocolExceptionHandler = new ProtocolExceptionHandler();

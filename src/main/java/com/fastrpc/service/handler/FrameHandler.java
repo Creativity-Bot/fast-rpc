@@ -1,6 +1,6 @@
 package com.fastrpc.service.handler;
 
-import com.fastrpc.config.ServiceRegistry;
+import com.fastrpc.config.ServiceMap;
 import com.fastrpc.constant.MessageType;
 import com.fastrpc.protocol.DataFrame;
 import com.fastrpc.protocol.Frame;
@@ -21,12 +21,12 @@ import java.util.concurrent.TimeUnit;
 @Slf4j
 @ChannelHandler.Sharable
 public class FrameHandler extends SimpleChannelInboundHandler<Map<String, Object>> {
-    private final ServiceRegistry serviceRegistry;
+    private final ServiceMap serviceMap;
     private final int serviceNumber;
     private final ThreadPoolExecutor servicesPool;
 
-    public FrameHandler(ServiceRegistry serviceRegistry, int serviceNumber) {
-        this.serviceRegistry = serviceRegistry;
+    public FrameHandler(ServiceMap serviceMap, int serviceNumber) {
+        this.serviceMap = serviceMap;
         this.serviceNumber = serviceNumber;
         this.servicesPool = new ThreadPoolExecutor(
                 this.serviceNumber,
@@ -71,7 +71,7 @@ public class FrameHandler extends SimpleChannelInboundHandler<Map<String, Object
         Object[] args = frame.getArgs();
 
         String serviceName = serviceInterface.getName();
-        Object orDefault = serviceRegistry.get(serviceName);
+        Object orDefault = serviceMap.get(serviceName);
         if (orDefault == null) {
             log.error("service {} does not exist", serviceName);
             throw new RuntimeException("service does not exist");

@@ -9,11 +9,11 @@ import org.springframework.util.ClassUtils;
 @Component
 public class FrpcServiceBeanPostProcessor implements BeanPostProcessor {
 
-    private final ServiceRegistry serviceRegistry;
+    private final ServiceMap serviceMap;
     private final ServiceRateLimiter serviceRateLimiter;
 
-    public FrpcServiceBeanPostProcessor(ServiceRegistry serviceRegistry, ServiceRateLimiter serviceRateLimiter) {
-        this.serviceRegistry = serviceRegistry;
+    public FrpcServiceBeanPostProcessor(ServiceMap serviceMap, ServiceRateLimiter serviceRateLimiter) {
+        this.serviceMap = serviceMap;
         this.serviceRateLimiter = serviceRateLimiter;
     }
 
@@ -25,7 +25,7 @@ public class FrpcServiceBeanPostProcessor implements BeanPostProcessor {
             return bean;
         }
         for (Class<?> iface : type.getInterfaces()) {
-            serviceRegistry.register(iface.getName(), bean);
+            serviceMap.register(iface.getName(), bean);
             serviceRateLimiter.register(iface.getName());
         }
         return bean;

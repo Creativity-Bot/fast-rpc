@@ -1,6 +1,6 @@
 package com.fastrpc.test;
 
-import com.fastrpc.config.ServiceRegistry;
+import com.fastrpc.config.ServiceMap;
 import com.fastrpc.serializer.FastRPCSerializer;
 import com.fastrpc.service.handler.FrameHandler;
 import com.fastrpc.service.handler.PacketHandler;
@@ -27,8 +27,8 @@ public class FrpcServer {
         EventLoopGroup handlerGroup = new DefaultEventLoopGroup(16);
         EventLoopGroup serviceGroup = new DefaultEventLoopGroup(16);
 
-        ServiceRegistry serviceRegistry = new ServiceRegistry();
-        serviceRegistry.register(HelloService.class.getName(), new HelloServiceImpl());
+        ServiceMap serviceMap = new ServiceMap();
+        serviceMap.register(HelloService.class.getName(), new HelloServiceImpl());
 
         try {
             ServerBootstrap serverBootstrap = new ServerBootstrap();
@@ -60,7 +60,7 @@ public class FrpcServer {
                     });
                     pipeline.addLast(handlerGroup, new ProtocolValidator());
                     pipeline.addLast(handlerGroup, new ProtocolExceptionHandler());
-                    pipeline.addLast(serviceGroup, new FrameHandler(serviceRegistry, 16));
+                    pipeline.addLast(serviceGroup, new FrameHandler(serviceMap, 16));
                     pipeline.addLast(serviceGroup, new PacketHandler());
                 }
             });

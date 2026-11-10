@@ -8,8 +8,8 @@ import org.springframework.context.annotation.Configuration;
 public class FrpcConfig {
 
     @Bean
-    public ServiceRegistry serviceRegistry() {
-        return new ServiceRegistry();
+    public ServiceMap serviceMap() {
+        return new ServiceMap();
     }
 
     @Bean
