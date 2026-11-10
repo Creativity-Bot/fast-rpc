@@ -1,23 +1,27 @@
 package com.fastrpc.registry.impl;
 
 import com.fastrpc.registry.Registry;
+import com.fastrpc.registry.ServiceListener;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.curator.framework.CuratorFramework;
 import org.apache.curator.framework.CuratorFrameworkFactory;
 import org.apache.curator.framework.recipes.cache.CuratorCache;
 import org.apache.curator.framework.recipes.cache.CuratorCacheListener;
 import org.apache.curator.framework.recipes.cache.PathChildrenCacheEvent;
-import org.apache.curator.framework.recipes.cache.PathChildrenCacheListener;
 import org.apache.curator.retry.ExponentialBackoffRetry;
 import org.apache.zookeeper.CreateMode;
+
 import java.net.InetSocketAddress;
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
 @Slf4j
 public class ZKRegistry implements Registry {
 
-    private CuratorFramework client;
+    private final CuratorFramework client;
+    private final Map<String, CuratorCache> caches = new ConcurrentHashMap<>();
 
 
     public ZKRegistry(String zkServerAddress) {
@@ -66,20 +70,47 @@ public class ZKRegistry implements Registry {
     }
 
     @Override
-    public void subscribeService(String targetInterfaceName, List<InetSocketAddress> existingHostAndPort) {
-        String servicePath = SERVICE_PREFIX + "/" + targetInterfaceName + SERVICE_SUFFIX;
-        CuratorCache curatorCache = CuratorCache.build(client, servicePath);
-        CuratorCacheListener curatorCacheListener = CuratorCacheListener.builder().forPathChildrenCache(servicePath, client, new PathChildrenCacheListener() {
-            @Override
-            public void childEvent(CuratorFramework client, PathChildrenCacheEvent event) throws Exception {
-                //1 remove all existing addresses
-                existingHostAndPort.clear();
-                //2 update addresses
-                existingHostAndPort.addAll(mapPathToSocketAddr(servicePath));
-            }
-        }).build();
+    public void subscribeService(String targetInterfaceName, ServiceListener listener) {
+        String servicePath = servicePath(targetInterfaceName);
+        publish(servicePath, listener);
+        caches.computeIfAbsent(targetInterfaceName, name -> watch(servicePath, listener));
+    }
 
+    private CuratorCache watch(String servicePath, ServiceListener listener) {
+        CuratorCache curatorCache = CuratorCache.build(client, servicePath);
+        CuratorCacheListener curatorCacheListener = CuratorCacheListener.builder()
+                .forPathChildrenCache(servicePath, client, (client, event) -> {
+                    PathChildrenCacheEvent.Type type = event.getType();
+                    if (type == PathChildrenCacheEvent.Type.CHILD_ADDED
+                            || type == PathChildrenCacheEvent.Type.CHILD_REMOVED
+                            || type == PathChildrenCacheEvent.Type.CHILD_UPDATED
+                            || type == PathChildrenCacheEvent.Type.INITIALIZED) {
+                        try {
+                            publish(servicePath, listener);
+                        } catch (RuntimeException e) {
+                            log.error("service watch update failed", e);
+                        }
+                    }
+                }).build();
         curatorCache.listenable().addListener(curatorCacheListener);
         curatorCache.start();
+        return curatorCache;
+    }
+
+    private void publish(String servicePath, ServiceListener listener) {
+        try {
+            if (this.client.checkExists().forPath(servicePath) == null) {
+                listener.onAddresses(List.of());
+                return;
+            }
+            listener.onAddresses(List.copyOf(mapPathToSocketAddr(servicePath)));
+        } catch (Exception e) {
+            log.error("service pulling failed", e);
+            throw new RuntimeException("service pulling failed", e);
+        }
+    }
+
+    private String servicePath(String targetInterfaceName) {
+        return SERVICE_PREFIX + "/" + targetInterfaceName + SERVICE_SUFFIX;
     }
 }

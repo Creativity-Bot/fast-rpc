@@ -4,5 +4,8 @@ import java.net.InetSocketAddress;
 import java.util.List;
 
 public interface LoadBalancer {
-    InetSocketAddress next(List<InetSocketAddress> hostAndPorts);
+
+    void accept(String serviceName, List<InetSocketAddress> addresses);
+
+    InetSocketAddress next(String serviceName);
 }

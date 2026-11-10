@@ -12,6 +12,6 @@ public interface Registry {
 
     List<InetSocketAddress> pullService(String targetInterfaceName);
 
-    void subscribeService(String targetInterfaceName, List<InetSocketAddress> existingHostAndPort);
+    void subscribeService(String targetInterfaceName, ServiceListener listener);
 
 }
