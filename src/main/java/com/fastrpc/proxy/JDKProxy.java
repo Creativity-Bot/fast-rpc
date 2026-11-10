@@ -1,20 +1,15 @@
 package com.fastrpc.proxy;
 
-import com.fastrpc.client.impl.NettyClient;
-import com.fastrpc.constant.MessageType;
 import com.fastrpc.exception.ConnectException;
 import com.fastrpc.exception.WriteFailureException;
-import com.fastrpc.protocol.DataFrame;
-import com.fastrpc.protocol.Frame;
-import com.fastrpc.protocol.Packet;
-import com.fastrpc.protocol.ResultFrame;
-import io.netty.channel.Channel;
-import io.netty.channel.ChannelFutureListener;
-import io.netty.util.concurrent.Promise;
+import com.fastrpc.loadbalancer.LoadBalancer;
+import com.fastrpc.transport.Transport;
+import com.fastrpc.transport.impl.NettyClientTransport;
 
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
+import java.net.InetSocketAddress;
 import java.util.concurrent.TimeUnit;
 
 public class JDKProxy implements InvocationHandler {
@@ -25,12 +20,29 @@ public class JDKProxy implements InvocationHandler {
     private Class<?> target;
     private String ip;
     private int port;
+    private LoadBalancer loadBalancer;
+    private Transport transport;
+
 
 
     public JDKProxy(Class<?> target, String ip, int port) {
+        this(target, ip, port, new NettyClientTransport());
+    }
+
+    public JDKProxy(Class<?> target, String ip, int port, Transport transport) {
+        this(target, ip, port, null, transport);
+    }
+
+    public JDKProxy(Class<?> target, LoadBalancer loadBalancer, Transport transport) {
+        this(target, null, -1, loadBalancer, transport);
+    }
+
+    public JDKProxy(Class<?> target, String ip, int port, LoadBalancer loadBalancer, Transport transport) {
         this.target = target;
         this.ip = ip;
         this.port = port;
+        this.loadBalancer = loadBalancer;
+        this.transport = transport;
     }
 
     public Object createProxy() {
@@ -45,7 +57,10 @@ public class JDKProxy implements InvocationHandler {
         long backoffSeconds = BACKOFF_PERIOD;
         for (int attempt = 1; ; attempt++) {
             try {
-                return send(method, args);
+                InetSocketAddress address = loadBalancer != null
+                        ? loadBalancer.next(target.getName())
+                        : new InetSocketAddress(ip, port);
+                return transport.send(address, target, method, args);
             } catch (ConnectException | WriteFailureException e) {
                 if (attempt >= MAX_ATTEMPTS) {
                     throw e;
@@ -59,35 +74,5 @@ public class JDKProxy implements InvocationHandler {
                 }
             }
         }
-    }
-
-    private Object send(Method method, Object[] args) throws Throwable {
-        Channel channel = NettyClient.get(ip, port);
-
-        if (channel.attr(InFlight.KEY).get() == null) {
-            channel.attr(InFlight.KEY).setIfAbsent(new InFlight());
-        }
-
-        InFlight inFlight = channel.attr(InFlight.KEY).get();
-        int nextRequestId = inFlight.nextId();
-
-        Promise<ResultFrame> promise = channel.eventLoop().newPromise();
-        inFlight.add(nextRequestId, promise);
-
-        Frame dataFrame = new DataFrame(target, method.getName(), method.getParameterTypes(), args);
-        Packet packet = new Packet(dataFrame, nextRequestId, MessageType.REQUEST.getCode());
-
-        channel.writeAndFlush(packet).addListener((ChannelFutureListener) writeFuture -> {
-            if (!writeFuture.isSuccess()) {
-                inFlight.remove(nextRequestId);
-                promise.tryFailure(new WriteFailureException(writeFuture.cause()));
-            }
-        });
-
-        ResultFrame result = promise.sync().getNow();
-        if (result.getException() != null) {
-            throw result.getException();
-        }
-        return result.getResult();
     }
 }

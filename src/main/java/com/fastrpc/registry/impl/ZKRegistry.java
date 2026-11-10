@@ -13,15 +13,12 @@ import org.apache.zookeeper.CreateMode;
 
 import java.net.InetSocketAddress;
 import java.util.List;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
 @Slf4j
 public class ZKRegistry implements Registry {
 
     private final CuratorFramework client;
-    private final Map<String, CuratorCache> caches = new ConcurrentHashMap<>();
 
 
     public ZKRegistry(String zkServerAddress) {
@@ -31,7 +28,7 @@ public class ZKRegistry implements Registry {
 
     @Override
     public void registerService(String targetInterfaceName, InetSocketAddress hostAndPort) {
-        String servicePath = SERVICE_PREFIX + "/" + targetInterfaceName + SERVICE_SUFFIX;
+        String servicePath = servicePath(targetInterfaceName);
         try {
             if (client.checkExists().forPath(servicePath) == null) {
                 this.client.create().creatingParentsIfNeeded().withMode(CreateMode.PERSISTENT).forPath(servicePath);
@@ -45,48 +42,37 @@ public class ZKRegistry implements Registry {
         }
     }
 
-    @Override
-    public List<InetSocketAddress> pullService(String targetInterfaceName) {
-        String servicePath = SERVICE_PREFIX + "/" + targetInterfaceName + SERVICE_SUFFIX;
-        try {
-            if (this.client.checkExists().forPath(servicePath) != null) {
-                return mapPathToSocketAddr(servicePath);
-            } else {
-                throw new RuntimeException("no services found");
-            }
-        } catch (Exception e) {
-            log.error("service pulling failed", e);
-            throw new RuntimeException("service pulling failed");
-        }
-    }
-
-    private List<InetSocketAddress> mapPathToSocketAddr(String servicePath) throws Exception {
-        List<String> serviceAddresses = this.client.getChildren().forPath(servicePath);
-        List<InetSocketAddress> inetSocketAddresses = serviceAddresses.stream()
+    private List<InetSocketAddress> mapPathToSocketAddr(List<String> serviceAddresses) {
+        return serviceAddresses.stream()
                 .map(s -> s.split(":"))
                 .map(s -> new InetSocketAddress(s[0], Integer.parseInt(s[1])))
                 .collect(Collectors.toList());
-        return inetSocketAddresses;
     }
 
     @Override
     public void subscribeService(String targetInterfaceName, ServiceListener listener) {
-        String servicePath = servicePath(targetInterfaceName);
-        publish(servicePath, listener);
-        caches.computeIfAbsent(targetInterfaceName, name -> watch(servicePath, listener));
-    }
+        String serviceFullPath = servicePath(targetInterfaceName);
 
-    private CuratorCache watch(String servicePath, ServiceListener listener) {
-        CuratorCache curatorCache = CuratorCache.build(client, servicePath);
+        // init service for the first time
+        try {
+            List<String> newNodes = client.getChildren().forPath(serviceFullPath);
+            listener.onAddresses(mapPathToSocketAddr(newNodes));
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+
+        // add listener on service for update in the future
+        CuratorCache curatorCache = CuratorCache.build(client, serviceFullPath);
         CuratorCacheListener curatorCacheListener = CuratorCacheListener.builder()
-                .forPathChildrenCache(servicePath, client, (client, event) -> {
+                .forPathChildrenCache(serviceFullPath, client, (client, event) -> {
                     PathChildrenCacheEvent.Type type = event.getType();
                     if (type == PathChildrenCacheEvent.Type.CHILD_ADDED
                             || type == PathChildrenCacheEvent.Type.CHILD_REMOVED
                             || type == PathChildrenCacheEvent.Type.CHILD_UPDATED
                             || type == PathChildrenCacheEvent.Type.INITIALIZED) {
                         try {
-                            publish(servicePath, listener);
+                            List<String> newNodes = client.getChildren().forPath(serviceFullPath);
+                            listener.onAddresses(List.copyOf(mapPathToSocketAddr(newNodes)));
                         } catch (RuntimeException e) {
                             log.error("service watch update failed", e);
                         }
@@ -94,20 +80,6 @@ public class ZKRegistry implements Registry {
                 }).build();
         curatorCache.listenable().addListener(curatorCacheListener);
         curatorCache.start();
-        return curatorCache;
-    }
-
-    private void publish(String servicePath, ServiceListener listener) {
-        try {
-            if (this.client.checkExists().forPath(servicePath) == null) {
-                listener.onAddresses(List.of());
-                return;
-            }
-            listener.onAddresses(List.copyOf(mapPathToSocketAddr(servicePath)));
-        } catch (Exception e) {
-            log.error("service pulling failed", e);
-            throw new RuntimeException("service pulling failed", e);
-        }
     }
 
     private String servicePath(String targetInterfaceName) {

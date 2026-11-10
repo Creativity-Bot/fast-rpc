@@ -16,7 +16,7 @@ public class RoundRobinLoadBalancer implements LoadBalancer {
     @Override
     public void accept(String serviceName, List<InetSocketAddress> addresses) {
         Endpoints endpoints = services.computeIfAbsent(serviceName, name -> new Endpoints());
-        endpoints.addresses.set(List.copyOf(addresses));
+        endpoints.addresses.set(addresses);
     }
 
     @Override
