@@ -20,20 +20,16 @@ public class FastRPCSerializer extends MessageToMessageCodec<ByteBuf, Packet> {
 
 
     /*
-    *
-    * | 字段 | 长度 | 取值 |
-      | --- | --- | --- |
-      | magic | 4 | 仍然是 `frpc` |
-      | version | 1 |
-      | type | 1 | `1` 请求，`2` 响应，`3` Ping，`4` Pong |
-      | flags | 1 | 先写 `0`，留给以后用 |
-      | requestId | 8 | 一次调用的编号。Ping / Pong 用来对上同一次探活 |
-      | length | 4 | 正文字节数。Ping / Pong 为 `0` |
-      | body | length | 请求是 `MethodInvokData`，响应是 `Result`。探活没有正文 |
-    *
-    *
-    *
-    * */
+     * | field     | bytes  | value                                                                 |
+     * | --------- | ------ | --------------------------------------------------------------------- |
+     * | magic     | 4      | UTF-8 "frpc"                                                          |
+     * | version   | 1      | Frame.VERSION, currently 1                                            |
+     * | type      | 1      | 1 request, 2 response, 3 ping, 4 pong                                 |
+     * | flags     | 1      | 0 none; 1 cancel the call with this requestId, body length 0         |
+     * | requestId | 4      | call id; also matches a ping with its pong                            |
+     * | length    | 4      | body size in bytes; 0 when frame is null (ping and pong)              |
+     * | body      | length | Hessian-encoded Frame: DataFrame for a request, ResultFrame for a response |
+     */
     @Override
     protected void encode(ChannelHandlerContext ctx, Packet msg, List out) throws Exception {
         try {
@@ -41,7 +37,7 @@ public class FastRPCSerializer extends MessageToMessageCodec<ByteBuf, Packet> {
             buffer.writeBytes(Frame.MAGIC_NUMBER.getBytes(StandardCharsets.UTF_8));
             buffer.writeByte(Frame.VERSION);
             buffer.writeByte(msg.getType());
-            buffer.writeByte(0); // safe for future
+            buffer.writeByte(msg.getFlags());
             buffer.writeInt(msg.getRequestId());
             if(msg.getFrame() != null){
                 byte[] bytes = codec.encode(msg.getFrame());

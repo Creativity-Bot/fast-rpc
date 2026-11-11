@@ -2,6 +2,7 @@ package com.fastrpc.server.impl;
 
 import com.fastrpc.config.ServiceMap;
 import com.fastrpc.config.ServiceRateLimiter;
+import com.fastrpc.constant.ClientCall;
 import com.fastrpc.registry.Registry;
 import com.fastrpc.serializer.FastRPCSerializer;
 import com.fastrpc.server.Server;
@@ -23,6 +24,7 @@ import lombok.extern.slf4j.Slf4j;
 
 import java.net.InetSocketAddress;
 import java.util.Iterator;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 
 @Data
@@ -100,6 +102,10 @@ public class NettyServer implements Server {
             serverBootstrap.childHandler(new ChannelInitializer<NioSocketChannel>() {
                 @Override
                 protected void initChannel(NioSocketChannel ch) throws Exception {
+                    if (ch.attr(ClientCall.CALLS).get() == null) {
+                        ch.attr(ClientCall.CALLS).setIfAbsent(new ConcurrentHashMap<>());
+                    }
+
                     ChannelPipeline pipeline = ch.pipeline();
                     pipeline.addLast(new IdleStateHandler(readIdleTime, writeIdleTime, 0, timeUnit));
                     pipeline.addLast(new LengthFieldBasedFrameDecoder(4*1024*1024, 11, 4, 0, 0));

@@ -1,6 +1,7 @@
 package com.fastrpc.service.handler;
 
 import com.fastrpc.config.ServiceRateLimiter;
+import com.fastrpc.constant.Flag;
 import com.fastrpc.constant.MessageType;
 import com.fastrpc.exception.ProtocolException;
 import com.fastrpc.limiter.TokenBucket;
@@ -25,8 +26,13 @@ public class RateLimiterHandler extends SimpleChannelInboundHandler<Map<String, 
     @Override
     protected void channelRead0(ChannelHandlerContext ctx, Map<String, Object> msg) throws Exception {
         byte type = (byte) msg.get("type");
+        byte flag = (byte) msg.get("flag");
         int requestId = (int) msg.get("requestId");
         DataFrame frame = (DataFrame) msg.get("frame");
+        if(flag == Flag.CANCEL) {
+            ctx.fireChannelRead(msg);
+            return;
+        }
         Class<?> serviceInterface = frame.getServiceInterface();
         MessageType messageType = MessageType.from(type);
         if (messageType == MessageType.REQUEST) {

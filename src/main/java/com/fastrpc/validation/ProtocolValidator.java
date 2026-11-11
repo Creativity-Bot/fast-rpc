@@ -1,5 +1,6 @@
 package com.fastrpc.validation;
 
+import com.fastrpc.constant.Flag;
 import com.fastrpc.constant.MessageType;
 import com.fastrpc.exception.ProtocolException;
 import com.fastrpc.protocol.Frame;
@@ -36,7 +37,11 @@ public class ProtocolValidator extends SimpleChannelInboundHandler<Map<String, O
         }
         if (messageType == null) {
             log.error("Type is invalid for request with id {}", requestId);
-            throw new ProtocolException(requestId, "Type is invalid" + type);
+            throw new ProtocolException(requestId, "Type is invalid");
+        }
+        if (flag != Flag.NONE && flag != Flag.CANCEL) {
+            log.error("Flag is invalid for request with id {}", requestId);
+            throw new ProtocolException(requestId, "Flag is invalid");
         }
         if (requestId == 0) {
             log.error("Request ID is required for request with id {}", requestId);

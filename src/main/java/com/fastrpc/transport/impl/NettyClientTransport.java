@@ -1,6 +1,7 @@
 package com.fastrpc.transport.impl;
 
 import com.fastrpc.client.impl.NettyClient;
+import com.fastrpc.constant.Flag;
 import com.fastrpc.constant.MessageType;
 import com.fastrpc.exception.TimeoutException;
 import com.fastrpc.exception.WriteFailureException;
@@ -47,12 +48,15 @@ public class NettyClientTransport implements Transport {
         });
 
         if (!promise.await(3, TimeUnit.SECONDS)) {
-            inFlight.remove(nextRequestId);
             if (promise.tryFailure(new TimeoutException("rpc timeout"))) {
+                // timeout trigger
+                Packet cancelPacket = new Packet(null, nextRequestId, MessageType.REQUEST.getCode(), Flag.CANCEL);
+                channel.writeAndFlush(cancelPacket);
+                inFlight.remove(nextRequestId);
                 throw new TimeoutException("rpc timeout");
             }
-        }
 
+        }
         ResultFrame result = promise.sync().getNow();
         if (result.getException() != null) {
             throw result.getException();
