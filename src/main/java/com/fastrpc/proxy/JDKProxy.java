@@ -1,6 +1,7 @@
 package com.fastrpc.proxy;
 
 import com.fastrpc.exception.ConnectException;
+import com.fastrpc.exception.TimeoutException;
 import com.fastrpc.exception.WriteFailureException;
 import com.fastrpc.loadbalancer.LoadBalancer;
 import com.fastrpc.transport.Transport;
@@ -61,7 +62,7 @@ public class JDKProxy implements InvocationHandler {
                         ? loadBalancer.next(target.getName())
                         : new InetSocketAddress(ip, port);
                 return transport.send(address, target, method, args);
-            } catch (ConnectException | WriteFailureException e) {
+            } catch (ConnectException | WriteFailureException | TimeoutException e) {
                 if (attempt >= MAX_ATTEMPTS) {
                     throw e;
                 }
