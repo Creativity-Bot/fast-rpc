@@ -2,6 +2,7 @@ package com.fastrpc.transport.impl;
 
 import com.fastrpc.client.impl.NettyClient;
 import com.fastrpc.constant.MessageType;
+import com.fastrpc.exception.TimeoutException;
 import com.fastrpc.exception.WriteFailureException;
 import com.fastrpc.protocol.DataFrame;
 import com.fastrpc.protocol.Frame;
@@ -16,6 +17,7 @@ import org.springframework.stereotype.Component;
 
 import java.lang.reflect.Method;
 import java.net.InetSocketAddress;
+import java.util.concurrent.TimeUnit;
 
 @Component
 public class NettyClientTransport implements Transport {
@@ -43,6 +45,13 @@ public class NettyClientTransport implements Transport {
                 promise.tryFailure(new WriteFailureException(writeFuture.cause()));
             }
         });
+
+        if (!promise.await(3, TimeUnit.SECONDS)) {
+            inFlight.remove(nextRequestId);
+            if (promise.tryFailure(new TimeoutException("rpc timeout"))) {
+                throw new TimeoutException("rpc timeout");
+            }
+        }
 
         ResultFrame result = promise.sync().getNow();
         if (result.getException() != null) {
