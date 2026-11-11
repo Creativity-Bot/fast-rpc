@@ -82,6 +82,11 @@ public class ZKRegistry implements Registry {
         curatorCache.start();
     }
 
+    @Override
+    public void shutdown() {
+        this.client.close();
+    }
+
     private String servicePath(String targetInterfaceName) {
         return SERVICE_PREFIX + "/" + targetInterfaceName + SERVICE_SUFFIX;
     }

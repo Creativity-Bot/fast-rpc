@@ -11,4 +11,5 @@ public interface Registry {
 
     void subscribeService(String targetInterfaceName, ServiceListener listener);
 
+    void shutdown();
 }

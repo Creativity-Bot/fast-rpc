@@ -161,6 +161,7 @@ public class NettyServer implements Server {
 
     @Override
     public void stop() {
+        registry.shutdown();
         bossGroup.shutdownGracefully();
         workerGroup.shutdownGracefully();
         handlerGroup.shutdownGracefully();
