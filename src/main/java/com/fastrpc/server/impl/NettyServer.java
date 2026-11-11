@@ -102,7 +102,7 @@ public class NettyServer implements Server {
                 protected void initChannel(NioSocketChannel ch) throws Exception {
                     ChannelPipeline pipeline = ch.pipeline();
                     pipeline.addLast(new IdleStateHandler(readIdleTime, writeIdleTime, 0, timeUnit));
-                    pipeline.addLast(new LengthFieldBasedFrameDecoder(1024, 11, 4, 0, 0));
+                    pipeline.addLast(new LengthFieldBasedFrameDecoder(4*1024*1024, 11, 4, 0, 0));
                     pipeline.addLast(loggingHandler);
                     pipeline.addLast(handlerGroup, fastRPCSerializer);
                     pipeline.addLast(handlerGroup, heartBeatHandler);

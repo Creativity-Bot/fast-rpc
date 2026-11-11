@@ -90,7 +90,7 @@ public class NettyClient implements Client {
                 protected void initChannel(NioSocketChannel ch) throws Exception {
                     ChannelPipeline pipeline = ch.pipeline();
                     pipeline.addLast(new IdleStateHandler(15, 10, 0));
-                    pipeline.addLast(new LengthFieldBasedFrameDecoder(1024, 11, 4, 0, 0));
+                    pipeline.addLast(new LengthFieldBasedFrameDecoder(4*1024*1024, 11, 4, 0, 0));
                     pipeline.addLast(loggingHandler);
                     pipeline.addLast(groupHandler, fastRPCSerializer);
                     pipeline.addLast(groupHandler, clientHeartBeatHandler);
