@@ -1,0 +1,13 @@
+fastrpc:
+  registry:
+    address: 127.0.0.1:2181
+  server:
+    enabled: true
+    ip: localhost
+    port: 9527
+    worker-threads: 4
+    handler-threads: 16
+    service-threads: 16
+  rate-limit:
+    permits-per-second: 100
+    capacity: 100
