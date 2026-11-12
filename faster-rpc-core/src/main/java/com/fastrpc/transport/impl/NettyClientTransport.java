@@ -23,7 +23,7 @@ public class NettyClientTransport implements Transport {
 
     @Override
     public Object send(InetSocketAddress address, Class<?> target, Method method, Object[] args) throws Throwable {
-        Channel channel = NettyClient.get(address.getHostName(), address.getPort());
+        Channel channel = NettyClient.get(address.getAddress().getHostAddress(), address.getPort());
 
         if (channel.attr(InFlight.KEY).get() == null) {
             channel.attr(InFlight.KEY).setIfAbsent(new InFlight());

@@ -35,7 +35,7 @@ public class ZKRegistry implements Registry {
             if (client.checkExists().forPath(servicePath) == null) {
                 this.client.create().creatingParentsIfNeeded().withMode(CreateMode.PERSISTENT).forPath(servicePath);
             }
-            String nodeUrl = this.client.create().withMode(CreateMode.EPHEMERAL).forPath(servicePath + "/" + hostAndPort.getHostName() + ":" + hostAndPort.getPort());
+            String nodeUrl = this.client.create().withMode(CreateMode.EPHEMERAL).forPath(servicePath + "/" + hostAndPort.getAddress().getHostAddress() + ":" + hostAndPort.getPort());
 
             log.debug("node is created {} ", nodeUrl);
         } catch (Exception e) {
