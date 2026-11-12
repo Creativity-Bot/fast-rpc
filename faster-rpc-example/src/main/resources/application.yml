@@ -1,9 +1,9 @@
 fastrpc:
   registry:
-    address: 127.0.0.1:2181
+    address: 192.168.78.130:2181
   server:
     enabled: true
-    ip: localhost
+    ip: 192.168.247.1
     port: 9527
     worker-threads: 4
     handler-threads: 16

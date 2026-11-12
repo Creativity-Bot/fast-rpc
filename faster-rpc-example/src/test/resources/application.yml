@@ -1,0 +1,7 @@
+logging:
+  level:
+    com.fastrpc.example.HelloControllerTest: DEBUG
+
+fastrpc:
+  registry:
+    address: 192.168.78.130:2181
