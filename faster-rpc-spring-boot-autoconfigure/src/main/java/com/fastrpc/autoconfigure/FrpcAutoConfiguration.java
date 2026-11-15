@@ -1,5 +1,7 @@
 package com.fastrpc.autoconfigure;
 
+import com.fastrpc.circuitbreaker.CircuitBreaker;
+import com.fastrpc.circuitbreaker.impl.CircuitBreakerImpl;
 import com.fastrpc.config.ServiceMap;
 import com.fastrpc.config.ServiceRateLimiter;
 import com.fastrpc.loadbalancer.LoadBalancer;
@@ -56,9 +58,16 @@ public class FrpcAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean
+    public CircuitBreaker circuitBreaker() {
+        return new CircuitBreakerImpl();
+    }
+
+
+    @Bean
+    @ConditionalOnMissingBean
     public FrpcClientBeanPostProcessor frpcClientBeanPostProcessor(Registry registry, Transport transport,
-                                                                   LoadBalancer loadBalancer) {
-        return new FrpcClientBeanPostProcessor(registry, transport, loadBalancer);
+                                                                   LoadBalancer loadBalancer, CircuitBreaker circuitBreaker) {
+        return new FrpcClientBeanPostProcessor(registry, transport, loadBalancer, circuitBreaker);
     }
 
     @Bean

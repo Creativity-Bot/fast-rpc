@@ -1,6 +1,7 @@
 package com.fastrpc.autoconfigure;
 
 import com.fastrpc.annotation.FrpcClient;
+import com.fastrpc.circuitbreaker.CircuitBreaker;
 import com.fastrpc.loadbalancer.LoadBalancer;
 import com.fastrpc.proxy.JDKProxy;
 import com.fastrpc.registry.Registry;
@@ -20,12 +21,14 @@ public class FrpcClientBeanPostProcessor implements BeanPostProcessor {
     private final Registry registry;
     private final Transport transport;
     private final LoadBalancer loadBalancer;
+    private final CircuitBreaker circuitBreaker;
     private final Set<String> subscribedServices = new HashSet<>();
 
-    public FrpcClientBeanPostProcessor(Registry registry, Transport transport, LoadBalancer loadBalancer) {
+    public FrpcClientBeanPostProcessor(Registry registry, Transport transport, LoadBalancer loadBalancer, CircuitBreaker circuitBreaker) {
         this.registry = registry;
         this.transport = transport;
         this.loadBalancer = loadBalancer;
+        this.circuitBreaker = circuitBreaker;
     }
 
     @Override
@@ -46,7 +49,7 @@ public class FrpcClientBeanPostProcessor implements BeanPostProcessor {
                     registry.subscribeService(serviceName, addresses -> loadBalancer.accept(serviceName, addresses));
                     subscribedServices.add(serviceName);
                 }
-                Object proxy = new JDKProxy(fieldType, loadBalancer, transport).createProxy();
+                Object proxy = new JDKProxy(fieldType, loadBalancer, transport, circuitBreaker).createProxy();
                 ReflectionUtils.makeAccessible(field);
                 try {
                     field.set(bean, proxy);

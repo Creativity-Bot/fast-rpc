@@ -3,6 +3,7 @@ package com.fastrpc.loadbalancer.impl;
 import com.fastrpc.loadbalancer.LoadBalancer;
 
 import java.net.InetSocketAddress;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -20,18 +21,25 @@ public class RoundRobinLoadBalancer implements LoadBalancer {
     }
 
     @Override
-    public InetSocketAddress next(String serviceName) {
-        Endpoints endpoints = services.get(serviceName);
-        if (endpoints == null) {
-            throw new IllegalStateException("no available address for " + serviceName);
+    public InetSocketAddress select(String serviceName, List<InetSocketAddress> addresses) {
+        if (addresses == null || addresses.isEmpty()) {
+            throw new IllegalStateException("all services are temporarily unavailable");
         }
-        List<InetSocketAddress> snapshot = endpoints.addresses.get();
-        if (snapshot.isEmpty()) {
-            throw new IllegalStateException("no available address for " + serviceName);
-        }
-        int index = endpoints.index.getAndIncrement() & Integer.MAX_VALUE;
-        return snapshot.get(index % snapshot.size());
+        int index = services.get(serviceName).index.getAndIncrement() & Integer.MAX_VALUE;
+        return addresses.get(index % addresses.size());
     }
+
+
+    @Override
+    public List<InetSocketAddress> getAddresses(String serviceName) {
+        List<InetSocketAddress> addreList = services.get(serviceName).addresses.get();
+        if(addreList.isEmpty()){
+            throw new IllegalStateException("no available address from service registry");
+        }
+        // return copy of
+        return new ArrayList<>(addreList);
+    }
+
 
     private static final class Endpoints {
         private final AtomicReference<List<InetSocketAddress>> addresses = new AtomicReference<>(List.of());

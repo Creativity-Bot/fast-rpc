@@ -7,5 +7,7 @@ public interface LoadBalancer {
 
     void accept(String serviceName, List<InetSocketAddress> addresses);
 
-    InetSocketAddress next(String serviceName);
+    InetSocketAddress select(String serviceName, List<InetSocketAddress> addresses);
+
+    List<InetSocketAddress> getAddresses(String serviceName);
 }
