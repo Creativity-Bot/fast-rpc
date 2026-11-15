@@ -14,6 +14,7 @@ The example application is both a provider and a caller. It exposes `GET /hello`
 - Round-robin load balancing over the current address list.
 - Client timeout of 3 seconds. On timeout the client sends a cancel flag, and the server interrupts the in-flight business task.
 - Retry up to 3 times, with exponential backoff, for connection failure, write failure, and timeout. Business exceptions are returned as-is and are not retried.
+- A client-side circuit breaker per provider address. The last 16 calls are kept in a count-based window. More than 8 failures in that window open the breaker for 10 seconds, and the load balancer skips the address. Connection failure, write failure, and timeout count as failures. A business exception counts as a success. After the cooldown, one probe call is allowed. A successful probe closes the breaker and clears the window. A failed probe opens it for another 10 seconds. A call that is still in flight from an earlier generation does not change the new state.
 - Idle detection and ping/pong heartbeats.
 - A bounded business thread pool, separate from Netty I/O threads. A full queue rejects the call.
 - A per-service token bucket on the provider.
@@ -27,7 +28,6 @@ Not included yet, and reasonable to add later:
 - An IDL and a cross-language codec such as Protobuf.
 - TLS and authentication.
 - Per-method timeouts, and retries that run only for idempotent calls.
-- Circuit breaking and temporary removal of a failing address.
 - Graceful shutdown that leaves the registry first and waits for in-flight calls.
 - Metrics and distributed tracing.
 - Weights, groups, and versions in the registry.
